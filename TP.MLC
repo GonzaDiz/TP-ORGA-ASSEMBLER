@@ -1,0 +1,127 @@
+TP		SUBENTRY BASES=(3)
+		 OPEN  (ARCHIN,(INPUT)) *ABRO ARCHIVO
+INGRESO	 WTOR  'INGRESE EL OPERANDO INICIAL',OPER1,,WAITECB
+		 WAIT  ECB=WAITECB
+		 LA    5,OPER1
+		 BAL   7,VALOP
+		 CLI   VAL,C'I'
+		 BE	   INGRESO
+		 LA	   6,OPER1
+		 BAL   7,CARTOBIN
+		 ST	   5,OPER1BIN
+LEER	 GET   ARCHIN,REG 
+		 BAL   8,VALREG
+		 CLI   VAL,C'I'
+		 BE    LEER
+		 LA	   6,OPER2
+		 BAL   7,CARTOBIN
+		 ST    5,OPER2BIN
+		 L 	   5,OPER1BIN
+		 CLI   OPERAC,C'O'
+		 BE	   OPOR
+		 CLI   OPERAC,C'X'
+		 BE	   XOR
+		 CLI   OPERAC,C'N'
+		 BE	   AND
+		 CLI   OPERAC,C'A'
+		 BE	   ADD
+		 S	   5,OPER2BIN
+		 B	   MOSTRAR
+OPOR	 O	   5,OPER2BIN
+		 B	   MOSTRAR
+XOR		 X	   5,OPER2BIN
+		 B	   MOSTRAR
+AND		 N	   5,OPER2BIN
+		 B	   MOSTRAR
+ADD		 A	   5,OPER2BIN
+MOSTRAR	 ST	   5,OPER1BIN
+		 BAL   8,VER|
+		 B	   LEER
+EOF		 CLOSE ARCHIN
+		 SUBEXIT
+		 
+*************************	VALIN    	***********************************
+*		VALIDA EL OPERANDO INGRESADO POR EL USUARIO          		      *
+***************************************************************************
+
+VALOP	MVI    VAL,C'I'
+		LA 	   6,16
+OTROCAR	CLI    0(5),C'1'
+		BE	   LOOP
+		CLI    0(5),C'0'
+		BNE	   INVALID
+LOOP	LA 	   5,1(5)
+		BCT	   6,OTROCAR
+		MVI	   VAL,C'V'
+INVALID	BR 	   7
+
+*************************	VALREG   	***********************************
+*		VALIDA EL REGISTRO DEL ARCHIVO DE ENTRADA  	        		      *
+***************************************************************************
+
+VALREG  LA 	   5,OPER2
+        BAL	   7,VALOP
+		CLI    VAL,C'I'
+		BE 	   NOVAL
+		MVI    VAL,C'I'
+		CLI    OPERAC,C'O'
+		BE	   SIVAL
+		CLI    OPERAC,C'X'
+		BE	   SIVAL
+		CLI    OPERAC,C'N'
+		BE	   SIVAL
+		CLI    OPERAC,C'S'
+		BE     SIVAL
+		CLI    OPERAC,C'A'
+		BNE    NOVAL
+SIVAL	MVI    VAL,C'V'
+NOVAL	BR     8
+		
+
+*************************	CARTOBIN	***********************************
+*		PASA EL OPERANDO A BINARIO Y LO GUARDA EN EL REGISTRO 5		      *
+***************************************************************************
+
+CARTOBIN LA	   5,0	*REGISTRO 4 INICIALIZADO EN 0
+		 LA	   4,16	*16 CANTIDAD DE CARACTERES A PASAR
+OTCAR	 SLL   5,1
+		 CLI   0(6),C'0' *VER SI EL CARACTER ES 0
+		 BE	   CERO	*ES 0
+		 A	   5,=F'1' *SUMO FULLWORD 1 AL REGISTRO 5
+CERO	 LA	   6,1(6) *AVANZO EN EL OPERANDO
+		 BCT   4,OTCAR *OTRO CARACTER
+		 BR	   7	*SALGO DE LA RUTINA
+
+******************************* 	VER	***********************************
+*	PASA EL CONTENIDO DE 5 A CARACTER Y FINALMENTE LO MUESTRA		      *
+***************************************************************************
+
+VER		 SLL   5,16	*CORRO 16 BITS DEL REGISTRO 5 YA QUE EL RESULTADO ESTA AL FINAL
+		 LA	   10,RESULT+20 *CARGO EN 10 LA DIRECCION DEL RESULTADO
+		 LA	   9,16	*CARGO 16 EN 9 YA QUE HARE EL LOOP 16 VECES
+CICLO	 LA	   4,0	*REGISTRO 4 EN 0
+		 SLDL  4,1	*HAGO SLDL Y AHORA TENGO EL PRIMER BIT DEL REGISTRO 5 EN 4
+		 C	   4,=F'1'	*VEO SI ES 1
+		 BE	   UNO	*ES 1
+		 MVI   0(10),C'O' *ES 0 ENTONCES COLOCO UN 0 EN RESULT
+		 B	   SIGUE 
+UNO		 MVI   0(10),C'1' *ES 1 ENTONCES COLOCO UN 1 EN RESULT
+SIGUE	 LA	   10,1(10) *ME MUEVO EN RESULT
+		 BCT   9,CICLO
+		 WTO   MF=(E,WTOBLOCK)	*IMPRIMO EL RESULTADO
+		 BR	   8
+	
+ARCHIN 	 DCB   DSNAME=FILENAME,LRECL=17,RECFM=FB,MACRF=GM,EODAD=EOF
+FILENAME DC    C'PRUEBA.DAT',X'00'
+REG	     DS    0CL17
+OPER2	 DS    CL16
+OPERAC	 DS	   CL1	
+OPER1	 DS	   CL16
+OPER1BIN DC    F'0'
+OPER2BIN DC    F'0'
+WAITECB	 DC	   F'0'
+WTOBLOCK DC	   H'40'
+	     DC	   H'0'
+RESULT	 DC	   CL36'Resultado Parcial = 0000000000000000'
+VAL 	 DC    C'I'
+		 END
